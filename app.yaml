@@ -1,0 +1,63 @@
+application: csgc
+version: 20140102
+runtime: php
+api_version: 1
+threadsafe: false
+
+default_expiration: "1d"
+
+handlers:
+- url: /(.*\.(htm$|html$|css$|js$))
+  static_files: wordpress/\1
+  upload: wordpress/(.*\.(htm$|html$|css$|js$))
+  application_readable: true
+
+- url: /wp-content/(.*\.(ico$|jpg$|png$|gif$))
+  static_files: wordpress/wp-content/\1
+  upload: wordpress/wp-content/(.*\.(ico$|jpg$|png$|gif$))
+  application_readable: true
+
+- url: /wp-includes/(.*\.(ico$|jpg$|png$|gif$|svg$|ttf$))
+  static_files: wordpress/wp-includes/\1
+  upload: wordpress/wp-includes/(.*\.(ico$|jpg$|png$|gif$|svg$|ttf$))
+  application_readable: true
+  
+- url: /(.*\.(ico$|jpg$|png$|gif$))
+  static_files: wordpress/\1
+  upload: wordpress/(.*\.(ico$|jpg$|png$|gif$))
+
+- url: /wp-admin/(.+)
+  script: wordpress/wp-admin/\1
+  secure: always 
+
+- url: /wp-admin/
+  script: wordpress/wp-admin/index.php
+  secure: always 
+
+- url: /wp-login.php
+  script: wordpress/wp-login.php
+  secure: always
+
+- url: /wp-cron.php
+  script: wordpress/wp-cron.php
+  login: admin
+
+- url: /xmlrpc.php
+  script: wordpress/xmlrpc.php
+
+- url: /robots.txt
+  static_files: robots.txt
+  upload: robots.txt
+
+- url: /(.+)?/?
+  script: wordpress/index.php
+
+skip_files:
+- ^(.*/)?#.*#
+- ^(.*/)?.*~
+- ^(.*/)?.*\.py[co]
+- ^(.*/)?.*/RCS/.*
+- ^(.*/)?\..*
+- ^(.*/)?\.bak
+- ^(.*/)?@2x\.png
+
