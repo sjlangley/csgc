@@ -358,12 +358,24 @@ class Uploads {
 
 		if ( empty( $baseurl ) || $cached_file !== $file ) {
 			try {
-				$baseurl = CloudStorageTools::getImageServingUrl( $file, [ 'size' => null ] );
-
+				if (self::is_production()) {
+					$baseurl = CloudStorageTools::getImageServingUrl($file);
+				}
+				// If running on the development server, use getPublicUrl() instead
+				// of getImageServingUrl().
+				// This removes the requirement for the Python PIL library to be installed
+				// in the development environment.
+				// TODO: this is a temporary modification.
+				else {
+					$baseurl = CloudStorageTools::getPublicUrl($file, true);
+				}
 				update_post_meta( $id, '_appengine_imageurl', $baseurl );
 				update_post_meta( $id, '_appengine_imageurl_file', $file );
 			}
 			catch ( CloudStorageException $e ) {
+        syslog(LOG_ERR,
+            'There was an exception creating the Image Serving URL, details ' .
+            $e->getMessage());
 				self::$skip_image_filters = true;
 				$data = image_downsize( $id, $size );
 				self::$skip_image_filters = false;
@@ -374,14 +386,19 @@ class Uploads {
 
 		$url = $baseurl;
 
-		if ( ! is_null( $options['size'] ) ) {
-			$url .= ( '=s' . $options['size'] );
-			if ( $options['crop'] ) {
-				$url .= '-c';
+		// Only append image options to the URL if we're running in production,
+		// since in the development context getPublicUrl() is currently used to
+		// generate the URL.
+		if (self::is_production()) {
+			if ( ! is_null( $options['size'] ) ) {
+				$url .= ( '=s' . $options['size'] );
+				if ( $options['crop'] ) {
+					$url .= '-c';
+				}
 			}
-		}
-		else {
-			$url .= '=s0';
+			else {
+				$url .= '=s0';
+			}
 		}
 
 		$data = [
@@ -588,9 +605,21 @@ class Admin {
 			return CloudStorageTools::getDefaultGoogleStorageBucketName();
 		}
 
-		if ( !file_exists( 'gs://' . $input ) || ! is_writable( 'gs://' . $input ) ) {
-			add_settings_error( 'appengine_settings', 'invalid-bucket', __( 'You have entered an invalid bucket name, or the bucket is not writable.', 'appengine' ) );
-		}
+    $bucket_name = 'gs://' . $input;
+    $valid_bucket_name = true;
+    // In the devappserver there is a chicken and egg problem with bucket
+    // creation - so we need to special case this check for the time being.
+    if ( self::is_production() ) {
+      if (!file_exists( $bucket_name ) || !is_writable( $bucket_name ) ) {
+        $valid_bucket_name = false;
+      }
+    } else {
+      $valid_bucket_name = self::bucket_is_writable($bucket_name);
+    }
+
+    if (!$valid_bucket_name) {
+      add_settings_error( 'appengine_settings', 'invalid-bucket', __( 'You have entered an invalid bucket name, or the bucket is not writable.', 'appengine' ) );
+    }
 
 		return $input;
 	}
@@ -604,4 +633,31 @@ class Admin {
 		$default = CloudStorageTools::getDefaultGoogleStorageBucketName();
 		update_option( 'appengine_uploads_bucket', $default );
 	}
+
+  /**
+   * Workaround for Windows bug in is_writable() function
+   *
+   * @since 2.8.0
+   *
+   * @param string $path
+   * @return bool
+   */
+  public static function bucket_is_writable( $bucket ) {
+    $path = $bucket . '/wordpress-write-check.tmp';
+
+    // check tmp file for read/write capabilities
+    $f = fopen( $path, 'w' );
+    if ( $f === false ) {
+      return false;
+    }
+
+    fclose( $f );
+    unlink( $path );
+    return true;
+  }
+
+  // TODO: Cleanup with common method.
+  private static function is_production() {
+    return isset( $_SERVER['SERVER_SOFTWARE'] ) && strpos( $_SERVER['SERVER_SOFTWARE'], 'Google App Engine' ) !== false;
+  }
 }

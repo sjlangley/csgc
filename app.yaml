@@ -7,6 +7,10 @@ threadsafe: false
 default_expiration: "1d"
 
 handlers:
+- url: /wp-includes/fonts
+  static_dir: wordpress/wp-includes/fonts
+  application_readable: true
+
 - url: /(.*\.(htm$|html$|css$|js$))
   static_files: wordpress/\1
   upload: wordpress/(.*\.(htm$|html$|css$|js$))

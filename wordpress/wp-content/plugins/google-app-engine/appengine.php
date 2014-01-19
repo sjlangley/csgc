@@ -3,7 +3,7 @@
 Plugin Name: Google App Engine for WordPress
 Plugin URI: http://developers.google.com/appengine/
 Description: Optimize your WordPress installation for Google App Engine
-Version: 1.1
+Version: 1.3
 Author: Google
 Author URI: http://developers.google.com/appengine/
 License: GPL2
@@ -72,5 +72,8 @@ if ( $modules_dir = @ opendir( __DIR__ . '/modules/' ) ) {
 		require_once __DIR__ . '/modules/' . $file ;
 	}
 }
+
+// Include the App Engine specific WordPress importer.
+require_once __DIR__ . '/importer/wordpress-importer.php';
 
 register_activation_hook( __FILE__, __NAMESPACE__ . '\\activation' );
